@@ -26,29 +26,29 @@ SOURCES := $(wildcard *.py)
 
 LIBS=-lpython3.8
 
-all : libs strip 
+all : libs main 
 
 libs: $(filter-out $(MAIN_FILE).py,$(SOURCES))
 	@mkdir -p $(OUTPUT_DIR)
 	@for f in $(basename $^); do \
-                echo "Converting $$f to .c file"; \
+                echo "Converting $$f.py to .c file"; \
                 cython -3 $$f.py -o $(OUTPUT_DIR)$$f.c; \
         done
-	@echo "Converting $(MAIN_FILE) to .c file";
-	@cython -3 --embed $(MAIN_FILE).py -o $(OUTPUT_DIR)$(MAIN_FILE).c
 	@for f in $(basename $^); do \
-                echo "Making $$f .so library"; \
+                echo "Making $$f.so library"; \
                 $(CROSS_COMPILE)$(CC) $(CFLAGS) $(OPTIMIZE) $(INCLUDE) $(OUTPUT_DIR)$$f.c -o $(OUTPUT_DIR)$$f.so; \
         done
+	@for f in $(basename $^); do \
+                echo "Strip $$f.so library"; \
+		$(CROSS_COMPILE)$(STRIP) $(OUTPUT_DIR)$$f.so; \
+        done
+
+main:
+	@echo "Converting $(MAIN_FILE).py to .c file";
+	@cython -3 --embed $(MAIN_FILE).py -o $(OUTPUT_DIR)$(MAIN_FILE).c
 	@echo "Making binary";
 	@$(CROSS_COMPILE)$(CC) $(OPTIMIZE) $(INCLUDE) $(OUTPUT_DIR)$(MAIN_FILE).c $(LIBS) -o $(OUTPUT_DIR)$(MAIN_FILE)
-
-strip: $(wildcard $(OUTPUT_DIR)*.so)
-	$(CROSS_COMPILE)$(STRIP) $^
 	$(CROSS_COMPILE)$(STRIP) $(OUTPUT_DIR)main
-
-package:
-	tar cf rattrap.tar $(OUTPUT_DIR)*.so $(MAIN_FILE)
 
 clean:
 	rm -rf $(OUTPUT_DIR)
